@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     var statusItem: NSStatusItem?
     private(set) var islandController: IslandWindowController?
 
@@ -67,6 +67,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 800, height: 760),
                                   styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
             window.title = "Cloud Work — Coucou"
+            window.delegate = self
             window.contentView = NSHostingView(rootView: CloudWorkView())
             window.center()
             window.isReleasedWhenClosed = false
@@ -74,6 +75,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             window.makeKeyAndOrderFront(nil)
         }
         NSApp.activate(ignoringOtherApps: true)
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        guard let window = notification.object as? NSWindow, window === cloudWorkWindow else { return }
+        // Removing the SwiftUI tree cancels its refresh task even though the app stays alive.
+        window.contentView = nil
+        cloudWorkWindow = nil
     }
 
     // MARK: - Island setup

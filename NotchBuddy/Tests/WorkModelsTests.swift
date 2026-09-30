@@ -28,6 +28,7 @@ struct WorkModelsTests {
             ("completed", "timed_out", .failed), ("completed", "cancelled", .cancelled),
             ("completed", "neutral", .unknown), ("completed", "skipped", .unknown),
             ("queued", nil, .queued), ("waiting", nil, .needsApproval),
+            ("completed", "action_required", .needsApproval),
             ("in_progress", nil, .running), ("new_status", nil, .unknown)
         ]
         for (status, conclusion, expected) in statuses {

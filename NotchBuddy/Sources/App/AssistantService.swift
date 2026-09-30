@@ -38,7 +38,10 @@ final class AssistantService {
         WorkProviderID(rawValue: UserDefaults.standard.string(forKey: "assistantProvider") ?? "") == .claude ? .claude : .codex
     }
 
-    private var provider: any AssistantProvider { selected == .claude ? ClaudeService.shared : remote }
+    private var provider: any AssistantProvider {
+        if selected == .claude { return ClaudeService.shared }
+        return remote
+    }
 
     func clearConversation() {
         ClaudeService.shared.clearConversation()

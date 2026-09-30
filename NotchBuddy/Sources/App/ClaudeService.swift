@@ -114,8 +114,10 @@ final class ClaudeService {
 
     // Multi-turn conversation messages (for API)
     private var conversationMessages: [[String: Any]] = []
+    private var conversationGeneration = UUID()
 
     func clearConversation() {
+        conversationGeneration = UUID()
         conversationMessages = []
     }
 
@@ -138,6 +140,7 @@ final class ClaudeService {
             return
         }
 
+        let generation = conversationGeneration
         // Build user content for this turn
         var userContent: [[String: Any]] = []
 
@@ -169,9 +172,11 @@ final class ClaudeService {
 
         do {
             let data = try await callAPI(body: body, key: key, beta: "web-search-2025-03-05")
+            guard generation == conversationGeneration else { return }
             await handleChatResult(data, state: state)
         } catch {
-            conversationMessages.removeLast()
+            guard generation == conversationGeneration else { return }
+            if !conversationMessages.isEmpty { conversationMessages.removeLast() }
             await showError("Network error: \(error.localizedDescription)", state: state)
         }
     }

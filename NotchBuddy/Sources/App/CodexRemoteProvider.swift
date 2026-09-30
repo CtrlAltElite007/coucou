@@ -127,6 +127,7 @@ final class CodexRemoteProvider: ObservableObject, WorkProvider {
         var cursor: String?
         // Bounded pagination: at most the latest 200 threads in this remote directory.
         for _ in 0..<4 {
+            try Task.checkCancellation()
             var params: [String: Any] = [
                 "limit": 50, "sortKey": "updated_at",
                 "sourceKinds": ["cli", "vscode", "exec", "appServer", "unknown"]
@@ -269,7 +270,8 @@ final class CodexRemoteProvider: ObservableObject, WorkProvider {
     }
 
     private func rpc(_ method: String, params: [String: Any]) async throws -> [String: Any] {
-        guard socket != nil else { throw WorkError(message: "Remote host is disconnected.") }
+        guard let requestSocket = socket else { throw WorkError(message: "Remote host is disconnected.") }
+        let requestConnection = connectionID
         nextID += 1
         let id = WorkRequestID.number(nextID)
         let data = try JSONSerialization.data(withJSONObject: ["id": nextID, "method": method, "params": params])
@@ -282,8 +284,8 @@ final class CodexRemoteProvider: ObservableObject, WorkProvider {
             }
             Task { [weak self] in
                 do {
-                    guard let socket = self?.socket else { throw WorkError(message: "Disconnected") }
-                    try await socket.send(.string(String(decoding: data, as: UTF8.self)))
+                    guard self?.connectionID == requestConnection else { return }
+                    try await requestSocket.send(.string(String(decoding: data, as: UTF8.self)))
                 } catch {
                     guard let self else { return }
                     self.timeouts.removeValue(forKey: id)?.cancel()
@@ -430,7 +432,7 @@ final class CodexRemoteProvider: ObservableObject, WorkProvider {
         let git = thread["gitInfo"] as? [String: Any] ?? [:]
         let old = WorkStore.shared.jobs.first { $0.provider == .codex && $0.remoteID == id }
         var mappedStatus = WorkStatus.thread(type: status["type"] as? String ?? "", flags: status["activeFlags"] as? [String] ?? [])
-        if mappedStatus == .idle, let old, [.succeeded, .failed, .cancelled].contains(old.status) {
+        if mappedStatus == .idle, let old, (old.status == .succeeded || old.status == .failed || old.status == .cancelled) {
             mappedStatus = old.status
         }
         let job = WorkJob(

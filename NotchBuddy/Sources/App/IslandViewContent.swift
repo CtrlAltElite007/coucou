@@ -724,8 +724,19 @@ struct PromptView: View {
             CardBackground(wash: .indigo)
 
             VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Text(AssistantService.shared.selected == .claude ? "Claude" : "Codex · remote")
+                        .font(.caption).foregroundStyle(.secondary)
+                    Spacer()
+                    Button("New chat") { AssistantService.shared.clearConversation() }
+                        .font(.caption).buttonStyle(.plain)
+                }
                 if let ctx = state.promptContext {
-                    ContextChip(context: ctx).padding(.top, 4)
+                    HStack {
+                        ContextChip(context: ctx)
+                        Button("Clear attachment") { state.promptContext = nil }
+                            .font(.caption).buttonStyle(.plain)
+                    }.padding(.top, 4)
                 }
 
                 if !state.chatHistory.isEmpty {
