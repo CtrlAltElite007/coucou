@@ -26,6 +26,17 @@ jobs:
             -o "$RUNNER_TEMP/work-model-tests"
           "$RUNNER_TEMP/work-model-tests"
 
+      - name: Test remote provider protocol fixtures
+        run: |
+          swiftc -swift-version 6 -strict-concurrency=complete \
+            NotchBuddy/Sources/App/WorkModels.swift \
+            NotchBuddy/Sources/App/RemoteAccountModels.swift \
+            NotchBuddy/Sources/App/CodexRemoteProvider.swift \
+            NotchBuddy/Sources/App/GitHubWorkProvider.swift \
+            NotchBuddy/Tests/RemoteProviderTests.swift \
+            -o "$RUNNER_TEMP/remote-provider-tests"
+          "$RUNNER_TEMP/remote-provider-tests"
+
       - name: Install XcodeGen
         run: brew install xcodegen
 

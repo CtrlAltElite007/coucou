@@ -1,5 +1,10 @@
 import Foundation
+#if canImport(Combine)
 import Combine
+#endif
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 @MainActor
 final class GitHubWorkProvider: ObservableObject, WorkProvider {

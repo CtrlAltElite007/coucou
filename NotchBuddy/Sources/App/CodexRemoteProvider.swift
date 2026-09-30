@@ -1,5 +1,10 @@
 import Foundation
+#if canImport(Combine)
 import Combine
+#endif
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 /// A client only: the harness, credentials, shell, repository and tools stay on the remote host.
 /// WebSocket app-server transport is experimental. No local CLI is spawned.
@@ -460,7 +465,7 @@ final class CodexRemoteProvider: ObservableObject, WorkProvider {
         }
     }
 
-    private func receive(_ data: Data) async throws {
+    func receive(_ data: Data) async throws {
         guard let message = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { return }
         let id = decodeID(message["id"])
         if let method = message["method"] as? String {
