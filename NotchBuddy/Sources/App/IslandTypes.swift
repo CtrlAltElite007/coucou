@@ -60,6 +60,15 @@ struct AgentTask: Identifiable, Equatable {
 enum AgentSource: Equatable {
     case claudeCode
     case n8n
+    case cloud
+
+    var displayName: String {
+        switch self {
+        case .claudeCode: return "Claude Code"
+        case .n8n: return "n8n"
+        case .cloud: return "Cloud Work"
+        }
+    }
 }
 
 // MARK: - View dimensions (from VIEWS in prototype)

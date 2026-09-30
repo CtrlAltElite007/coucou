@@ -4,9 +4,11 @@
 
 # Coucou
 
-**A tiny friend that lives in your MacBook's notch — or at the top of your screen on Windows — and keeps an eye on your Claude Code sessions.**
+**A tiny friend in your MacBook's notch, now with a provider-neutral cloud workspace and Codex-first remote work. Claude compatibility is preserved; Windows keeps its existing feature set.**
 
-Approve permissions, watch your agents work, drop a file, chat with Claude — all without leaving what you're doing.
+Monitor remote tasks and GitHub Actions, review remote approvals, and hand off repository work. The macOS assistant defaults to Codex on a configured remote host; Claude chat and attachments remain available in Settings.
+
+**Start here:** [Cloud Work setup, architecture and limitations](docs/CLOUD_WORK.md). Remote app-server WebSockets are experimental. Hosted browser handoff requires you to paste and submit the copied prompt.
 
 ![macOS 15+](https://img.shields.io/badge/macOS-15%2B-black?logo=apple)
 ![Windows 10/11](https://img.shields.io/badge/Windows-10%2F11-0078D4?logo=windows&logoColor=white)
@@ -30,6 +32,9 @@ Some studios showed off gorgeous notch companions… and never let anyone use th
 Meet **Mochi**: a soft little squircle with big eyes that pops out of your notch, waves hello, follows your cursor with its eyes, gets annoyed when you poke it (and dizzy if you insist), and tells you the moment Claude Code needs you.
 
 ## Features
+
+- ☁️ **Cloud Work (macOS)** — provider-aware task status, repository/branch context, stale-state handling, explicit remote approvals and optional notifications.
+- 🚀 **Remote handoff (macOS)** — start a task on a secure remote app-server, copy a prompt to hosted Codex, or dispatch your configured GitHub workflow.
 
 - 🤖 **Claude Code, live** — see every session in your notch: what it reads, edits and runs, step by step. Finished? Mochi does a happy little jump.
 - ✅ **Approve from the notch** — Claude Code permission requests show up with **Allow / Deny**. One click, back to work.

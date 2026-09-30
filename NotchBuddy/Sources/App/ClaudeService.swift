@@ -61,7 +61,7 @@ final class KeychainStore: @unchecked Sendable {
     private let lock = NSLock()
 
     private static let allKeys = [
-        "anthropic-api-key",
+        "anthropic-api-key", "remote-agent-token",
         "resend-api-key", "resend-from",
         "n8n-url", "n8n-api-key",
         "vercel-token",
@@ -120,7 +120,7 @@ final class ClaudeService {
     }
 
     private let systemPrompt = """
-    You are Mochi, Louis's personal AI assistant embedded in the notch of his Mac. \
+    You are Mochi, a personal AI assistant embedded in the notch of his Mac. \
     You have web search access and can help with absolutely anything — research, coding, finding places, recommendations, tasks, questions. \
     Respond in the user's language. Be thorough and complete — use as much detail as the task requires. \
     No markdown formatting (no **, no ##, no bullet dashes). Use plain text with line breaks.

@@ -5,12 +5,25 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   build:
     runs-on: macos-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+
+      - name: Test provider models and event ordering
+        run: |
+          swiftc -swift-version 6 \
+            NotchBuddy/Sources/App/WorkModels.swift \
+            NotchBuddy/Tests/WorkModelsTests.swift \
+            -o "$RUNNER_TEMP/work-model-tests"
+          "$RUNNER_TEMP/work-model-tests"
 
       - name: Install XcodeGen
         run: brew install xcodegen
@@ -18,12 +31,31 @@ jobs:
       - name: Generate project
         run: cd NotchBuddy && xcodegen
 
-      - name: Build
+      - name: Build macOS app
         run: |
           xcodebuild \
             -project NotchBuddy/NotchBuddy.xcodeproj \
             -scheme NotchBuddy \
             -configuration Release \
+            -derivedDataPath work-build \
             build \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO
+
+      - name: Build sandboxed variant
+        run: |
+          xcodebuild \
+            -project NotchBuddy/NotchBuddy.xcodeproj \
+            -scheme CoucouAppStore \
+            -configuration Debug \
+            -derivedDataPath work-store-build \
+            build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO
+
+      - name: Upload unsigned macOS app for review
+        uses: actions/upload-artifact@v4
+        with:
+          name: coucou-macos-unsigned
+          path: work-build/Build/Products/Release/Coucou.app
+          retention-days: 7

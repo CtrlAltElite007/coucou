@@ -49,8 +49,10 @@ struct SettingsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
 
+                CloudWorkSettingsView()
+
                 // MARK: API
-                GroupBox("Anthropic API") {
+                GroupBox("Claude chat · optional Anthropic API") {
                     VStack(alignment: .leading, spacing: 8) {
                         SecureField("API key (sk-ant-…)", text: $apiKey)
                             .textFieldStyle(.roundedBorder)
@@ -276,7 +278,7 @@ struct SettingsView: View {
                 GroupBox("Active pills") {
                     VStack(alignment: .leading, spacing: 10) {
                         HStack {
-                            Text("VS Code")
+                            Text("Cloud Work + Claude (VS Code)")
                                 .font(.system(size: 12, weight: .semibold))
                             Circle().fill(Color(hex: "#F5F6F8")).frame(width: 8, height: 8)
                             Spacer()

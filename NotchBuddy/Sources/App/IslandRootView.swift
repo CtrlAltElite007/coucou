@@ -462,12 +462,17 @@ struct IslandHeader: View {
                 TabButton(icon: "house.fill", view: .overview, state: state)
                 TabButton(icon: "bubble.left.fill", view: .prompt, state: state, preAction: {
                     #if !APPSTORE
-                    if state.promptContext == nil {
+                    if AssistantService.shared.selected == .claude && state.promptContext == nil {
                         state.promptContext = WindowContextCapture.captureActive(from: state.lastExternalApp)
                     }
                     #endif
                 })
                 TabButton(icon: "plus", view: .upload, state: state)
+                Button {
+                    NotificationCenter.default.post(name: .openCloudWork, object: nil)
+                } label: {
+                    Image(systemName: "cloud").foregroundStyle(.secondary)
+                }.buttonStyle(.plain).help("Cloud Work")
             }
             .padding(.leading, 14)
 

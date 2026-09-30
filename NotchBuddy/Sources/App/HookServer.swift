@@ -129,6 +129,7 @@ final class HookServer: @unchecked Sendable {
             return
         }
 
+        ClaudeWorkAdapter.receive(name: name, payload: payload)
         let focused = state.focusId == "integration_claude"
 
         switch name {
@@ -268,6 +269,7 @@ final class HookServer: @unchecked Sendable {
         if let input = payload["tool_input"] as? [String: Any] {
             command = input["command"] as? String ?? tool
         }
+        ClaudeWorkAdapter.receive(name: "PermissionRequest", payload: payload)
         nbLog("PermissionRequest \(tool): \(command)")
 
         if pendingApprovalFD >= 0 {

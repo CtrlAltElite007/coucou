@@ -29,6 +29,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let menu = NSMenu()
         menu.addItem(withTitle: "Open Coucou", action: #selector(openIsland), keyEquivalent: "")
         menu.addItem(.separator())
+        menu.addItem(withTitle: "Cloud Work…", action: #selector(openCloudWork), keyEquivalent: "j")
         menu.addItem(withTitle: "Settings…", action: #selector(openSettings), keyEquivalent: ",")
         menu.addItem(.separator())
         menu.addItem(withTitle: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
@@ -57,6 +58,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.activate(ignoringOtherApps: true)
     }
 
+    private var cloudWorkWindow: NSWindow?
+
+    @objc private func openCloudWork() {
+        if let window = cloudWorkWindow, window.isVisible {
+            window.makeKeyAndOrderFront(nil)
+        } else {
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 800, height: 760),
+                                  styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
+            window.title = "Cloud Work — Coucou"
+            window.contentView = NSHostingView(rootView: CloudWorkView())
+            window.center()
+            window.isReleasedWhenClosed = false
+            cloudWorkWindow = window
+            window.makeKeyAndOrderFront(nil)
+        }
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
     // MARK: - Island setup
 
     private func setupIsland() {
@@ -64,6 +83,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         islandController?.showWindow(nil)
         islandController?.fsm.launch()
         HookServer.shared.start()
+        NotificationCenter.default.addObserver(self, selector: #selector(openCloudWork), name: .openCloudWork, object: nil)
         N8nPoller.shared.start()
         VercelPoller.shared.start()
         ResendPoller.shared.start()
