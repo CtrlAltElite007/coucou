@@ -14,6 +14,16 @@ final class CodexRemoteProvider: ObservableObject, WorkProvider {
     @Published private(set) var submitting = false
     @Published private(set) var chatBusy = false
     @Published private(set) var hooksSummary = ""
+    @Published private(set) var account: RemoteAccountSnapshot?
+    @Published private(set) var accountMessage = "Connect a remote host to check its account."
+    @Published private(set) var accountBusy = false
+    @Published private(set) var login = RemoteLoginState()
+    @Published private(set) var usageWindows: [RemoteUsageWindow] = []
+    @Published private(set) var usageMessage = ""
+    private var accountRevision = UUID()
+    private var loginOperation = UUID()
+    var readyForWork: Bool { connected && account?.ready == true && !accountBusy && !login.starting && login.challenge == nil }
+
     private var socket: URLSessionWebSocketTask?
     private var session: URLSession?
     private var receiver: Task<Void, Never>?
@@ -79,6 +89,7 @@ final class CodexRemoteProvider: ObservableObject, WorkProvider {
             connecting = false
             connected = true
             statusText = "Connected to remote host · experimental"
+            await refreshAccount()
             try await refresh()
         } catch {
             guard connectionID == generation else { return }
@@ -91,6 +102,14 @@ final class CodexRemoteProvider: ObservableObject, WorkProvider {
         connected = false
         connecting = false
         statusText = reason
+        accountRevision = UUID()
+        loginOperation = UUID()
+        account = nil
+        accountBusy = false
+        accountMessage = "Connect a remote host to check its account."
+        login = RemoteLoginState()
+        usageWindows = []
+        usageMessage = ""
         receiver?.cancel()
         receiver = nil
         socket?.cancel(with: .goingAway, reason: nil)
@@ -108,6 +127,126 @@ final class CodexRemoteProvider: ObservableObject, WorkProvider {
         completedTurns.removeAll()
         items.removeAll()
         resetChat()
+    }
+
+    func refreshAccount() async {
+        guard connected else { return }
+        let generation = connectionID
+        let revision = UUID()
+        accountRevision = revision
+        accountMessage = "Checking remote account…"
+        do {
+            let result = try await rpc("account/read", params: ["refreshToken": false])
+            guard connectionID == generation, accountRevision == revision else { return }
+            let snapshot = try JSONDecoder().decode(RemoteAccountSnapshot.self,
+                from: JSONSerialization.data(withJSONObject: result))
+            account = snapshot
+            accountMessage = snapshot.label
+            if snapshot.isChatGPT { await refreshUsage() }
+            else { usageWindows = []; usageMessage = "" }
+        } catch {
+            guard connectionID == generation, accountRevision == revision else { return }
+            account = nil
+            usageWindows = []
+            accountMessage = "Account check failed: \(error.localizedDescription)"
+        }
+    }
+
+    func refreshUsage() async {
+        guard connected, account?.isChatGPT == true else { return }
+        let generation = connectionID
+        let revision = accountRevision
+        do {
+            let result = try await rpc("account/rateLimits/read", params: [:])
+            guard generation == connectionID, revision == accountRevision else { return }
+            usageWindows = RemoteUsageWindow.parse(result)
+            usageMessage = usageWindows.isEmpty ? "Usage limits are unavailable." : ""
+        } catch {
+            guard generation == connectionID, revision == accountRevision else { return }
+            usageWindows = []
+            usageMessage = "Usage limits are unavailable on this host."
+        }
+    }
+
+    func signIn() async {
+        guard connected, !accountBusy, !login.starting, login.challenge == nil,
+              account?.requiresOpenaiAuth == true, account?.account == nil else { return }
+        let generation = connectionID
+        let operation = UUID()
+        loginOperation = operation
+        login.begin()
+        accountBusy = true
+        defer { if operation == loginOperation { accountBusy = false } }
+        do {
+            let result = try await rpc("account/login/start", params: ["type": "chatgptDeviceCode"])
+            guard generation == connectionID, operation == loginOperation else { return }
+            let response = try JSONDecoder().decode(RemoteDeviceLogin.self,
+                from: JSONSerialization.data(withJSONObject: result))
+            do { try login.receive(response) }
+            catch {
+                // Cancel the exact attempt if the host returned an untrusted verification URL.
+                _ = try? await rpc("account/login/cancel", params: ["loginId": response.loginId])
+                throw error
+            }
+            if login.outcome != nil { await finishSignIn() }
+        } catch {
+            guard generation == connectionID, operation == loginOperation else { return }
+            login = RemoteLoginState()
+            accountMessage = "Sign-in could not start: \(error.localizedDescription)"
+        }
+    }
+
+    func cancelSignIn() async {
+        guard connected, !accountBusy, let challenge = login.challenge else { return }
+        let generation = connectionID
+        let operation = loginOperation
+        accountBusy = true
+        defer { if operation == loginOperation { accountBusy = false } }
+        do {
+            _ = try await rpc("account/login/cancel", params: ["loginId": challenge.loginId])
+            guard generation == connectionID, operation == loginOperation else { return }
+            login = RemoteLoginState()
+            await refreshAccount()
+        } catch {
+            guard generation == connectionID, operation == loginOperation else { return }
+            accountMessage = "Cancellation was not confirmed: \(error.localizedDescription)"
+        }
+    }
+
+    func signOut() async {
+        guard connected, !accountBusy, !submitting, !chatBusy else { return }
+        let generation = connectionID
+        let operation = UUID()
+        loginOperation = operation
+        accountBusy = true
+        resetChat()
+        defer { if operation == loginOperation { accountBusy = false } }
+        do {
+            _ = try await rpc("account/logout", params: [:])
+            guard generation == connectionID, operation == loginOperation else { return }
+            login = RemoteLoginState()
+            account = nil
+            usageWindows = []
+            await refreshAccount()
+        } catch {
+            guard generation == connectionID, operation == loginOperation else { return }
+            account = nil
+            accountMessage = "Sign-out outcome is unknown. Check the remote account before continuing."
+        }
+    }
+
+    private func finishSignIn() async {
+        guard let outcome = login.outcome else { return }
+        let generation = connectionID
+        let operation = loginOperation
+        switch outcome {
+        case .succeeded:
+            await refreshAccount()
+        case .failed(let reason):
+            await refreshAccount()
+            guard generation == connectionID, operation == loginOperation else { return }
+            accountMessage = "Sign-in did not finish: \(reason)"
+        }
     }
 
     func resetChat() {
@@ -162,6 +301,7 @@ final class CodexRemoteProvider: ObservableObject, WorkProvider {
 
     func handoff(_ request: RemoteWorkRequest) async throws -> String {
         guard connected else { throw WorkError(message: "Connect a remote host in Cloud Work, or use the browser handoff.") }
+        guard readyForWork else { throw WorkError(message: "Check the remote account or sign in with ChatGPT in Cloud Work first.") }
         guard !submitting else { throw WorkError(message: "A handoff is already being submitted.") }
         guard WorkValidation.remoteDirectory(request.cwd) else {
             throw WorkError(message: "Set the absolute repository directory on the remote host.")
@@ -188,6 +328,7 @@ final class CodexRemoteProvider: ObservableObject, WorkProvider {
     }
 
     func chat(query: String) async throws {
+        guard readyForWork else { throw WorkError(message: "Connect and sign in to the remote host in Cloud Work first.") }
         guard !chatBusy else { throw WorkError(message: "Wait for the current remote reply.") }
         chatBusy = true
         let generation = chatGeneration
@@ -239,12 +380,17 @@ final class CodexRemoteProvider: ObservableObject, WorkProvider {
     }
 
     func inspect(threadID: String) async throws {
+        let snapshotStarted = Date()
         let result = try await rpc("thread/read", params: ["threadId": threadID, "includeTurns": true])
         guard let thread = result["thread"] as? [String: Any] else { return }
+        if let current = WorkStore.shared.jobs.first(where: { $0.provider == .codex && $0.remoteID == threadID }),
+           current.updatedAt > snapshotStarted { return }
         recordThread(thread, notify: false)
         if let turn = (thread["turns"] as? [[String: Any]])?.last {
             let status = turn["status"] as? String ?? ""
             if status == "inProgress", let id = turn["id"] as? String { activeTurns[threadID] = id }
+            else { activeTurns.removeValue(forKey: threadID) }
+            update(threadID, status: .turn(status), notify: false)
             let messages = (turn["items"] as? [[String: Any]] ?? []).compactMap { item -> String? in
                 item["type"] as? String == "agentMessage" ? item["text"] as? String : nil
             }
@@ -366,6 +512,30 @@ final class CodexRemoteProvider: ObservableObject, WorkProvider {
     }
 
     private func notification(_ method: String, params: [String: Any]) {
+        if method == "account/login/completed", let id = params["loginId"] as? String {
+            if login.complete(id: id, success: params["success"] as? Bool == true, error: params["error"] as? String) {
+                Task { await finishSignIn() }
+            }
+            return
+        }
+        if method == "account/updated" {
+            accountRevision = UUID()
+            account = nil
+            usageWindows = []
+            resetChat()
+            Task { await refreshAccount() }
+            return
+        }
+        if method == "account/rateLimits/updated" {
+            guard account?.isChatGPT == true else { return }
+            let incoming = RemoteUsageWindow.parse(params)
+            // A single-bucket notification must not discard other known buckets.
+            let changed = Set(incoming.map { $0.id.split(separator: ":").dropLast().joined(separator: ":") })
+            usageWindows.removeAll { changed.contains($0.id.split(separator: ":").dropLast().joined(separator: ":")) }
+            usageWindows += incoming
+            usageWindows.sort { $0.id < $1.id }
+            return
+        }
         if method == "thread/started", let thread = params["thread"] as? [String: Any] {
             recordThread(thread, notify: false)
             return
@@ -387,8 +557,7 @@ final class CodexRemoteProvider: ObservableObject, WorkProvider {
         case "turn/completed":
             let turn = params["turn"] as? [String: Any] ?? [:]
             let status = turn["status"] as? String
-            let final: WorkStatus = status == "completed" ? .succeeded :
-                (status == "interrupted" ? .cancelled : (status == "failed" ? .failed : .unknown))
+            let final = WorkStatus.turn(status ?? "")
             if let id = turn["id"] as? String {
                 completedTurns.insert("\(thread):\(id)")
                 if completedTurns.count > 500 { completedTurns = ["\(thread):\(id)"] }

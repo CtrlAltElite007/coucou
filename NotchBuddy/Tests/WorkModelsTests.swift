@@ -83,6 +83,70 @@ struct WorkModelsTests {
         }
         expect(ledger.jobs.count == 200, "history remains bounded")
         expect(WorkValidation.handoffText(prompt: "Fix it", repository: "a/b") == "Repository: a/b\n\nFix it", "repo-aware handoff")
+
+        for (wire, expected) in [("completed", WorkStatus.succeeded), ("failed", .failed),
+                                 ("interrupted", .cancelled), ("inProgress", .running), ("new", .unknown)] {
+            expect(WorkStatus.turn(wire) == expected, "remote turn terminal mapping")
+        }
+        // Auth readiness is explicit: a transport connection is not a signed-in account.
+        let signedOut = try JSONDecoder().decode(RemoteAccountSnapshot.self,
+            from: Data(#"{"account":null,"requiresOpenaiAuth":true}"#.utf8))
+        expect(!signedOut.ready, "signed out host cannot start work")
+        let custom = try JSONDecoder().decode(RemoteAccountSnapshot.self,
+            from: Data(#"{"account":null,"requiresOpenaiAuth":false}"#.utf8))
+        expect(custom.ready, "custom providers do not require ChatGPT")
+        let signedIn = try JSONDecoder().decode(RemoteAccountSnapshot.self,
+            from: Data(#"{"account":{"type":"chatgpt","email":null,"planType":"plus"},"requiresOpenaiAuth":true}"#.utf8))
+        expect(signedIn.ready && signedIn.isChatGPT, "ChatGPT account without email")
+        expect(signedIn.label.contains("Plus"), "plan is visible")
+        let apiKey = try JSONDecoder().decode(RemoteAccountSnapshot.self,
+            from: Data(#"{"account":{"type":"apiKey"},"requiresOpenaiAuth":true}"#.utf8))
+        expect(apiKey.ready && !apiKey.isChatGPT, "API accounts remain supported")
+
+        let challenge = RemoteDeviceLogin(type: "chatgptDeviceCode", loginId: "login-1",
+            verificationUrl: "https://auth.openai.com/codex/device", userCode: "ABCD-1234")
+        expect(challenge.verificationURL != nil, "official sign-in destination")
+        for invalid in ["http://auth.openai.com/codex/device", "https://auth.openai.com.evil.test/codex/device",
+                        "https://evil@auth.openai.com/codex/device", "https://auth.openai.com:443/codex/device",
+                        "https://auth.openai.com/codex/device?next=evil", "https://auth.openai.com/codex/device#evil",
+                        "https://auth.openai.com/other"] {
+            let value = RemoteDeviceLogin(type: "chatgptDeviceCode", loginId: "login-1",
+                verificationUrl: invalid, userCode: "ABCD-1234")
+            expect(value.verificationURL == nil, "reject untrusted sign-in destination")
+        }
+        var login = RemoteLoginState()
+        login.begin()
+        try login.receive(challenge)
+        expect(login.challenge == challenge && !login.starting, "show code after start response")
+        expect(!login.complete(id: "other-client", success: true, error: nil), "ignore unrelated login completion")
+        expect(login.challenge == challenge, "unrelated completion preserves pending login")
+        expect(login.complete(id: "login-1", success: true, error: nil), "matching completion accepted")
+        expect(login.challenge == nil && login.outcome == .succeeded, "successful login clears code")
+        login.begin()
+        expect(!login.complete(id: "login-1", success: true, error: nil), "buffer early completion")
+        try login.receive(challenge)
+        expect(login.challenge == nil && login.outcome == .succeeded, "early completion does not resurrect code")
+        login.begin()
+        try login.receive(challenge)
+        login.complete(id: "login-1", success: false, error: "Expired")
+        expect(login.outcome == .failed("Expired"), "expiry is displayed")
+        login = RemoteLoginState()
+        expect(!login.complete(id: "login-1", success: true, error: nil), "disconnect ignores late completion")
+
+        let usage = RemoteUsageWindow.parse([
+            "rateLimits": ["primary": ["usedPercent": 99.0]],
+            "rateLimitsByLimitId": [
+                "first": ["primary": ["usedPercent": 25.0, "windowDurationMins": 300, "resetsAt": 1000.0]],
+                "second": ["primary": ["usedPercent": 120.0], "secondary": ["usedPercent": -2.0]]
+            ]
+        ])
+        expect(usage.count == 3, "prefer all named quota buckets")
+        expect(usage[0].remainingPercent == 75, "remaining is inverse of usage")
+        expect(usage[0].resetsAt == Date(timeIntervalSince1970: 1000), "reset timestamp is seconds")
+        expect(usage[1].remainingPercent == 0 && usage[2].remainingPercent == 100, "clamp quota percentages")
+        expect(RemoteUsageWindow.parse(["rateLimits": ["primary": NSNull()]]).isEmpty, "missing usage is not zero")
+        expect(RemoteUsageWindow.parse(["rateLimits": ["primary": ["usedPercent": Double.nan]]]).isEmpty, "reject nonfinite usage")
+
         print("Passed \(checks) cloud work model checks.")
     }
 

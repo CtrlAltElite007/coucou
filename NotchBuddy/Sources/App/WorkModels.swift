@@ -44,6 +44,15 @@ enum WorkStatus: String, Codable, Sendable {
         default: return .unknown
         }
     }
+    static func turn(_ status: String) -> Self {
+        switch status {
+        case "inProgress": return .running
+        case "completed": return .succeeded
+        case "failed": return .failed
+        case "interrupted": return .cancelled
+        default: return .unknown
+        }
+    }
     static func thread(type: String, flags: [String] = []) -> Self {
         switch type {
         case "active": return flags.contains("waitingOnApproval") || flags.contains("waitingOnUserInput") ? .needsApproval : .running

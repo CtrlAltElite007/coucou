@@ -16,6 +16,7 @@ struct CloudWorkView: View {
     private var jobs: [WorkJob] { store.jobs.filter { filter == nil || $0.provider == filter } }
 
     var body: some View {
+        ScrollView {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Label("Cloud Work", systemImage: "cloud")
@@ -35,6 +36,7 @@ struct CloudWorkView: View {
                     else { Task { await remote.connect() } }
                 }.disabled(remote.connecting)
             }
+            if remote.connected { RemoteAccountView() }
             Text("Codex runs on your remote host. The WebSocket integration is experimental.")
                 .font(.caption).foregroundStyle(.secondary)
             HStack {
@@ -97,7 +99,7 @@ struct CloudWorkView: View {
                         Text(job.stale ? "Stale · \(job.status.label)" : job.status.label).font(.caption)
                     }.padding(.vertical, 3)
                 }.buttonStyle(.plain)
-            }.overlay {
+            }.frame(height: 240).overlay {
                 if jobs.isEmpty { Text("Connect a remote host or refresh a configured GitHub repository.").foregroundStyle(.secondary) }
             }
 
@@ -108,7 +110,7 @@ struct CloudWorkView: View {
                         .font(.caption).foregroundStyle(.secondary)
                     HStack {
                         Button("Start remote task") { startRemote() }
-                            .disabled(prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !remote.connected || remote.submitting)
+                            .disabled(prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !remote.readyForWork || remote.submitting)
                         Button("Copy prompt & open Codex cloud") { browserHandoff() }
                             .disabled(prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                         Button("Run GitHub workflow…") { dispatchConfirmation = true }
@@ -119,7 +121,8 @@ struct CloudWorkView: View {
             if !message.isEmpty { Text(message).font(.caption).textSelection(.enabled) }
             if let notice = store.notices.first { Text(notice).font(.caption).foregroundStyle(.orange) }
         }
-        .padding(18).frame(minWidth: 740, minHeight: 680)
+        .padding(18)
+        }.frame(minWidth: 740, minHeight: 680)
         .task {
             await refresh()
             while !Task.isCancelled {
@@ -242,7 +245,7 @@ struct CloudWorkSettingsView: View {
                 TextField("GitHub owner/repository", text: $repository)
                 TextField("Optional workflow filename (agent.yml)", text: $workflow)
                 TextField("Workflow branch or ref", text: $ref)
-                Text("The remote host must be signed in and hold its own checkout. Tokens stay in Keychain. A ChatGPT subscription is not an API key.")
+                Text("Connect your personal remote host, then sign in with ChatGPT in Cloud Work. The host needs its own checkout. Connection tokens stay in Keychain.")
                     .font(.caption).foregroundStyle(.secondary)
                 HStack {
                     Button("Save cloud settings") { save() }

@@ -6,7 +6,7 @@
 
 **A tiny friend in your MacBook's notch, now with a provider-neutral cloud workspace and Codex-first remote work. Claude compatibility is preserved; Windows keeps its existing feature set.**
 
-Monitor remote tasks and GitHub Actions, review remote approvals, and hand off repository work. The macOS assistant defaults to Codex on a configured remote host; Claude chat and attachments remain available in Settings.
+Sign in with ChatGPT on your personal remote host, monitor remote tasks and GitHub Actions, review remote approvals, and hand off repository work. The macOS assistant defaults to Codex on a configured remote host; Claude chat and attachments remain available in Settings.
 
 **Start here:** [Cloud Work setup, architecture and limitations](docs/CLOUD_WORK.md). Remote app-server WebSockets are experimental. Hosted browser handoff requires you to paste and submit the copied prompt.
 
@@ -45,7 +45,7 @@ Meet **Mochi**: a soft little squircle with big eyes that pops out of your notch
 - 🔌 **Integrations** — Stripe payments, n8n workflows, GitHub, Vercel deployments, Resend emails, Notion, Cal.com. Each one gets its own little colored Mochi.
 - 🎭 **A real character** — idle breathing, blinks, eyes on a sphere that follow your mouse, emotes, 28 handcrafted sounds, a greeting on launch.
 - 🫥 **Invisible when idle** — hides away when nothing is running, peeks out when you hover the notch (the top edge of the screen on Windows).
-- 🔒 **Private by design** — no telemetry, no account. Keys live in your macOS Keychain or Windows Credential Manager. The app only talks to the services you plug in.
+- 🔒 **Private by design** — no telemetry or Coucou account. Keys live in your macOS Keychain or Windows Credential Manager. The app only talks to the services you plug in.
 
 <table>
 <tr>
