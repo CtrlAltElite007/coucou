@@ -2251,7 +2251,7 @@ struct AgentPillsView: View {
     }
 
     private var displayTasks: [AgentTask] {
-        Array(others.prefix(4))
+        Array(others.prefix(6))
     }
 
     private let columns = [

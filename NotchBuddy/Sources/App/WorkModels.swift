@@ -181,7 +181,7 @@ struct WorkLedger {
         jobs.sort { $0.updatedAt > $1.updatedAt }
         jobs = Array(jobs.prefix(200))
         return event.notify && event.job.status.isAlert &&
-            (old?.status != event.job.status || old?.stale == true)
+            old?.status != event.job.status
     }
 
     mutating func markStale(provider: WorkProviderID) {

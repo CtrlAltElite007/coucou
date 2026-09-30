@@ -62,6 +62,8 @@ Meet **Mochi**: a soft little squircle with big eyes that pops out of your notch
 
 ### Download for macOS
 
+Cloud Work is currently source/CI-only in this fork. The upstream release linked below does not include it. After a successful [Build run](https://github.com/CtrlAltElite007/coucou/actions/workflows/build.yml), use this fork's unsigned review artifact. No signed release has been published.
+
 1. Grab the latest `Coucou.zip` from [Releases](https://github.com/Louis-CFM/coucou/releases).
 2. Unzip and move **Coucou.app** to `/Applications`.
 3. Launch. This build isn't notarized by Apple yet, so the first time macOS says it can't verify the developer: open **System Settings → Privacy & Security**, scroll down and click **Open Anyway** (only once).

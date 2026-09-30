@@ -73,6 +73,8 @@ struct WorkModelsTests {
         job.updatedAt = date.addingTimeInterval(2)
         expect(ledger.apply(WorkEvent(job: job)), "completion after reconnect")
         expect(ledger.jobs.first { $0.provider == .codex }?.stale == false, "fresh event clears stale")
+        ledger.markStale(provider: .codex)
+        expect(!ledger.apply(WorkEvent(job: job)), "recovery with unchanged status is quiet")
         ledger.remove(provider: .codex)
         expect(ledger.jobs.count == 1 && ledger.jobs[0].provider == .github, "clear only selected provider")
         for value in 0..<220 {

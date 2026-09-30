@@ -4,7 +4,7 @@ import Combine
 
 // Integration pills — always-present, never purged
 extension AgentTask {
-    /// All available integration pills. Claude is always active; others are opt-in (max 4).
+    /// All available integration pills. Cloud Work and Claude are always active; others are opt-in (max 4).
     static let integrationAgents: [AgentTask] = [
         AgentTask(id: "integration_cloud", name: "Cloud Work", color: "#34D399", state: .idle,
                   steps: ["Open your remote workspace"], source: .cloud, isIntegration: true),
@@ -265,7 +265,7 @@ final class AppState: ObservableObject {
         else if view == .overview && tasks.isEmpty { view = .empty }
     }
 
-    /// Load integration pills respecting activeIntegrations. VS Code always loads. Safe to call multiple times.
+    /// Load integration pills respecting activeIntegrations. Cloud Work and VS Code always load. Safe to call multiple times.
     func loadIntegrationTasks() {
         for task in AgentTask.integrationAgents {
             let shouldLoad = task.id == "integration_cloud" || task.id == "integration_claude" || activeIntegrations.contains(task.id)
@@ -277,7 +277,7 @@ final class AppState: ObservableObject {
         syncMode()
     }
 
-    /// Toggle an integration pill on/off. VS Code cannot be toggled. Max 4 active at once.
+    /// Toggle an integration pill on/off. Cloud Work and VS Code cannot be toggled. Max 4 active at once.
     func toggleIntegration(_ id: String) {
         guard id != "integration_claude", id != "integration_cloud" else { return }
         if activeIntegrations.contains(id) {

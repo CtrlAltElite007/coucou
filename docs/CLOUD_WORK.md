@@ -91,6 +91,10 @@ No new third-party runtime dependency. Bundle IDs and existing Keychain service 
 - App-server protocol/version compatibility, real credentials, concurrent live approvals, native notification permission, notch layout and sleep/reconnect require an interactive macOS smoke test. No live API or paid inference is required by CI.
 - CI compiles pure model checks and both macOS targets without signing. The uploaded review artifact is unsigned; it is not a signed/notarized release or an App Store submission.
 
+## Validation status
+
+Development and commits were made through GitHub tools, without a local checkout or local builds. On 2026-09-30 the fork had no Actions runs after the commits. The connector had repository write access but no workflow-dispatch tool; the available browser account had read-only access to this fork. Build/test results therefore remain **unverified** until the owner runs the Build workflow on main. No live remote host or model call was used for validation.
+
 ## Verified contracts
 
 Reviewed 2026-09-30:
