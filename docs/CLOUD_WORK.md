@@ -2,7 +2,7 @@
 
 This fork adds a Codex-first remote companion while preserving the existing Claude Code hook/socket and Anthropic chat paths. Windows is unchanged.
 
-## What works
+## Implemented features
 
 - Cloud Work opens from the menu bar, notch cloud button, or permanent Cloud Work pill (the default focus).
 - A provider-neutral job/event ledger distinguishes queued, running, needs-attention, completed, failed, cancelled, idle and unknown states. Provider IDs namespace jobs; stale snapshots cannot overwrite newer events. Disconnects mark cached results stale.
@@ -97,7 +97,19 @@ No new third-party runtime dependency. Bundle IDs and existing Keychain service 
 
 ## Validation status
 
-Development and commits were made through GitHub tools, without a local checkout or local builds. On 2026-09-30 the fork had no Actions runs after the commits. The connector had repository write access but no workflow-dispatch tool; the available browser account had read-only access to this fork. Build/test results therefore remain **unverified** until the owner runs the Build workflow on main. No live remote host or model call was used for validation.
+Development and commits were made through GitHub tools, without a local checkout or local builds.
+
+On 2026-10-01, the committed source passed **115 checks in a cloud Linux Swift compiler**:
+
+- **88 model/auth checks**: provider status mapping, repository/URL validation, typed request IDs, bounded history, stale/out-of-order events, account readiness, trusted verification links, early/late login completion, cancellation/expiry state, and quota parsing.
+- **27 provider/assistant checks**: the real remote provider and assistant code with fixture-only UI/Keychain/notification services; simultaneous approvals, numeric/string request IDs, missing patch previews, restricted decisions, duplicate requests, unsupported requests, assistant output, completion/failure/interruption, disconnects and delayed errors after switching assistants.
+- The compiler reported Swift 6.4, x86_64-unknown-linux-gnu. Compiler options were `-D DEBUG -swift-version 6 -strict-concurrency=complete`.
+- Browser-only cloud compilation concatenated the committed files and replaced each standalone test's `@main` entry with a top-level call. Production logic and assertions were unchanged. The Linux fixture supplies observable storage when Combine is unavailable; CI on macOS uses real Combine. These checks do **not** validate SwiftUI, AppKit, live network transport or a macOS app bundle.
+- [Reproduce model/auth checks](https://swiftfiddle.com/hzmaunvuxvcutdompzlpmr3czq) and [provider/assistant checks](https://swiftfiddle.com/tutxvjq2kna2taoyv5kdimooiu). The test source is also committed under NotchBuddy/Tests.
+
+The fork still has no GitHub Actions runs. The GitHub connector can commit source but has no workflow-dispatch/enable tool; the available browser account has read-only access to this fork. The native macOS builds and download artifact therefore remain **unverified/unavailable** until an owner-enabled Build run succeeds on main. Both macOS targets, both test programs and ZIP packaging are configured in that workflow.
+
+No live remote endpoint, account login, permission grant or paid model request was used for testing. A personal remote host must still be connected to verify real sign-in, task execution and approvals. No signed/notarized release or deployment has been performed.
 
 ## Verified contracts
 
