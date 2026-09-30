@@ -9,8 +9,26 @@ protocol AssistantProvider {
 extension ClaudeService: AssistantProvider {}
 
 @MainActor
+protocol RemoteChatClient {
+    func resetChat()
+    func chat(query: String) async throws
+}
+
+extension CodexRemoteProvider: RemoteChatClient {}
+
+@MainActor
 final class RemoteAssistant: AssistantProvider {
-    func clearConversation() { CodexRemoteProvider.shared.resetChat() }
+    private var generation = UUID()
+    private let client: any RemoteChatClient
+
+    init(client: any RemoteChatClient = CodexRemoteProvider.shared) {
+        self.client = client
+    }
+
+    func clearConversation() {
+        generation = UUID()
+        client.resetChat()
+    }
 
     func chat(query: String, context: PromptContext?, state: AppState) async {
         // Never read or upload a Mac file implicitly to the remote repository.
@@ -20,9 +38,11 @@ final class RemoteAssistant: AssistantProvider {
             state.stateOverride = nil
             return
         }
+        let requestGeneration = generation
         do {
-            try await CodexRemoteProvider.shared.chat(query: query)
+            try await client.chat(query: query)
         } catch {
+            guard requestGeneration == generation else { return }
             state.chatHistory.append(ChatMessage(role: .assistant, content: error.localizedDescription))
             state.stateOverride = nil
         }

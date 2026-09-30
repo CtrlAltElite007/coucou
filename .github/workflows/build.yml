@@ -33,6 +33,7 @@ jobs:
             NotchBuddy/Sources/App/RemoteAccountModels.swift \
             NotchBuddy/Sources/App/CodexRemoteProvider.swift \
             NotchBuddy/Sources/App/GitHubWorkProvider.swift \
+            NotchBuddy/Sources/App/AssistantService.swift \
             NotchBuddy/Tests/RemoteProviderTests.swift \
             -o "$RUNNER_TEMP/remote-provider-tests"
           "$RUNNER_TEMP/remote-provider-tests"

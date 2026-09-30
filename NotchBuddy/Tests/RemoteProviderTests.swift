@@ -22,6 +22,7 @@ struct ChatMessage {
 }
 @MainActor final class AppState {
     static let shared = AppState()
+    var promptContext: PromptContext?
     var stateOverride: Int?
     var chatHistory: [ChatMessage] = []
 }
@@ -35,6 +36,37 @@ struct ChatMessage {
     func stale(_ provider: WorkProviderID) { ledger.markStale(provider: provider) }
     func clear(_ provider: WorkProviderID) { ledger.remove(provider: provider) }
     func notice(_ message: String) { notices.append(message) }
+}
+
+struct PromptContext {}
+@MainActor final class ClaudeService {
+    static let shared = ClaudeService()
+    func clearConversation() {}
+    func chat(query: String, context: PromptContext?, state: AppState) async {}
+}
+
+@MainActor final class DeferredRemoteChat: RemoteChatClient {
+    private var pending: CheckedContinuation<Void, Error>?
+    private var started: CheckedContinuation<Void, Never>?
+    private(set) var calls = 0
+    func resetChat() {}
+    func chat(query: String) async throws {
+        calls += 1
+        try await withCheckedThrowingContinuation { continuation in
+            pending = continuation
+            started?.resume()
+            started = nil
+        }
+    }
+    func waitUntilStarted() async {
+        if pending != nil { return }
+        await withCheckedContinuation { started = $0 }
+    }
+    func fail() {
+        let callback = pending
+        pending = nil
+        callback?.resume(throwing: WorkError(message: "Delayed failure"))
+    }
 }
 
 @main
@@ -131,6 +163,26 @@ struct RemoteProviderTests {
         expect(store.jobs[0].status == .cancelled, "interrupt reported as cancelled")
         remote.disconnect()
         expect(store.jobs[0].stale && store.approvals.isEmpty && !remote.readyForWork, "disconnect invalidates cached state and actions")
+        let client = DeferredRemoteChat()
+        let assistant = RemoteAssistant(client: client)
+        let state = AppState.shared
+        let oldReply = Task { await assistant.chat(query: "old", context: nil, state: state) }
+        await client.waitUntilStarted()
+        assistant.clearConversation()
+        state.stateOverride = 42
+        client.fail()
+        await oldReply.value
+        expect(state.chatHistory.isEmpty && state.stateOverride == 42, "old remote failure cannot alter a new conversation")
+
+        let newReply = Task { await assistant.chat(query: "new", context: nil, state: state) }
+        await client.waitUntilStarted()
+        client.fail()
+        await newReply.value
+        expect(state.chatHistory.last?.content == "Delayed failure" && state.stateOverride == nil, "current remote failure is displayed")
+        let calls = client.calls
+        await assistant.chat(query: "file", context: PromptContext(), state: state)
+        expect(client.calls == calls && state.chatHistory.last?.content.contains("Clear the attached local context") == true,
+               "local attachments are rejected before remote calls")
         print("Passed \(checks) remote provider protocol checks without network access.")
     }
 }
